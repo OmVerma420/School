@@ -21,3 +21,8 @@ Backend/.env
 # frontend node modules
 Frontend/node_modules
 Backend/node_modules
+
+.expo
+.expo-shared
+node_modules
+.env
