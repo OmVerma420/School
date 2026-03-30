@@ -1,94 +1,64 @@
-import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, Linking, ScrollView } from "react-native";
 
 export default function AssignmentDetailScreen() {
-  const { id } = useLocalSearchParams();
+  // Grab the data passed from the Assignments Screen
+  const { title, subject, description, dueDate, fileUrl, teacherName } = useLocalSearchParams();
 
-  const [fileName, setFileName] = useState<string | null>(null);
-
-  const pickFile = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: "*/*",
-    });
-
-    if (!result.canceled) {
-      setFileName(result.assets[0].name);
+  // Function to open the teacher's attachment in the phone's browser
+  const openAttachment = async () => {
+    if (fileUrl) {
+      const supported = await Linking.canOpenURL(fileUrl as string);
+      if (supported) {
+        await Linking.openURL(fileUrl as string);
+      } else {
+        alert("Cannot open this file link.");
+      }
     }
-  };
-
-  const submitAssignment = () => {
-    if (!fileName) {
-      alert("Please upload a file first");
-      return;
-    }
-
-    alert("Assignment Submitted Successfully!");
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Assignment #{id}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Header Info */}
+      <View style={styles.headerCard}>
+        <Text style={styles.subject}>{subject}</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.metaText}>Assigned by: <Text style={styles.metaBold}>{teacherName}</Text></Text>
+        <Text style={styles.metaText}>Due Date: <Text style={styles.metaBold}>{dueDate}</Text></Text>
+      </View>
 
-      <Text style={styles.description}>
-        Submit your homework before the due date.
-      </Text>
+      {/* Instructions / Description */}
+      <View style={styles.detailsCard}>
+        <Text style={styles.sectionTitle}>Instructions</Text>
+        <Text style={styles.description}>
+          {description || "No additional instructions provided by the teacher."}
+        </Text>
+      </View>
 
-      <TouchableOpacity style={styles.uploadBtn} onPress={pickFile}>
-        <Text style={styles.btnText}>Upload File</Text>
-      </TouchableOpacity>
-
-      {fileName && (
-        <Text style={styles.fileName}>Selected File: {fileName}</Text>
-      )}
-
-      <TouchableOpacity style={styles.submitBtn} onPress={submitAssignment}>
-        <Text style={styles.btnText}>Submit Assignment</Text>
-      </TouchableOpacity>
-    </View>
+      {/* Only show the Download/View button if the teacher actually attached a file URL */}
+      {fileUrl ? (
+        <TouchableOpacity style={styles.downloadBtn} onPress={openAttachment}>
+          <Text style={styles.btnText}>View Attached Material</Text>
+        </TouchableOpacity>
+      ) : null}
+      
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#F5F6FA",
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#F5F6FA" },
+  
+  headerCard: { backgroundColor: "#fff", padding: 20, borderRadius: 12, marginBottom: 20, elevation: 1 },
+  subject: { color: "#4A6CF7", fontSize: 14, fontWeight: "bold", textTransform: "uppercase", marginBottom: 5 },
+  title: { fontSize: 24, fontWeight: "bold", color: "#1a1a2e", marginBottom: 15 },
+  metaText: { fontSize: 14, color: "#666", marginBottom: 4 },
+  metaBold: { color: "#333", fontWeight: "600" },
 
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
+  detailsCard: { backgroundColor: "#fff", padding: 20, borderRadius: 12, marginBottom: 25, elevation: 1 },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1a1a2e", marginBottom: 10 },
+  description: { fontSize: 15, color: "#444", lineHeight: 24 },
 
-  description: {
-    marginBottom: 20,
-    color: "#555",
-  },
-
-  uploadBtn: {
-    backgroundColor: "#4F6BED",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-
-  submitBtn: {
-    backgroundColor: "#2ECC71",
-    padding: 12,
-    borderRadius: 10,
-  },
-
-  btnText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-
-  fileName: {
-    marginBottom: 15,
-    color: "#333",
-  },
+  downloadBtn: { backgroundColor: "#2ECC71", padding: 16, borderRadius: 10, alignItems: "center" },
+  btnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });

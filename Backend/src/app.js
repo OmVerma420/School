@@ -15,6 +15,6 @@ app.use(helmet());
 app.use(morgan("dev"));
 
 import routes from "./routes/indexRoute.js";
-app.use("/api/auth", routes)
+app.use("/api", routes)
 
 export default app;

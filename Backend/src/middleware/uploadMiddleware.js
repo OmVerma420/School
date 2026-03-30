@@ -6,10 +6,14 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: "school-management",
-    resource_type: "auto",
+    resource_type: "auto", 
   },
 });
 
-const upload = multer({ storage });
+// Add the strict 5MB limit right here!
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5 MB (5 * 1024 KB * 1024 Bytes)
+});
 
 export default upload;

@@ -24,18 +24,17 @@ export const createNotification = async (req, res) => {
   }
 };
 
-/*
-Get Notifications for Students
-*/
+
+/* Get Notifications (UPDATED) */
 export const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find()
+    // Fetch notifications targeted to their role (e.g., "student") OR "all"
+    const notifications = await Notification.find({ 
+        targetRole: { $in: [req.user.role, "all"] } 
+      })
       .sort({ createdAt: -1 });
 
-    res.json({
-      success: true,
-      notifications,
-    });
+    res.json({ success: true, notifications });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch notifications" });
   }

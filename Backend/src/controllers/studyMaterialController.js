@@ -22,15 +22,14 @@ export const uploadMaterial = async (req, res) => {
   }
 };
 
+/* Get Materials (UPDATED) */
 export const getMaterials = async (req, res) => {
   try {
-    const materials = await StudyMaterial.find()
+    // Filter by the student's class
+    const materials = await StudyMaterial.find({ targetClass: req.user.studentClass })
       .sort({ createdAt: -1 });
 
-    res.json({
-      success: true,
-      materials,
-    });
+    res.json({ success: true, materials });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch materials" });
   }
