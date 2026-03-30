@@ -52,3 +52,28 @@ export const getMyAdmissions = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch admissions" });
   }
 };
+
+// Admin view ALL admissions
+export const getAllAdmissions = async (req, res) => {
+  try {
+    const admissions = await Admission.find().sort({ createdAt: -1 });
+    res.json({ success: true, admissions });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch all admissions" });
+  }
+};
+
+// Admin update status (Approve/Reject)
+export const updateAdmissionStatus = async (req, res) => {
+  try {
+    const { status } = req.body; // "Approved" or "Rejected"
+    const admission = await Admission.findByIdAndUpdate(
+      req.params.id, 
+      { status }, 
+      { new: true }
+    );
+    res.json({ success: true, admission });
+  } catch (error) {
+    res.status(500).json({ message: "Update failed" });
+  }
+};

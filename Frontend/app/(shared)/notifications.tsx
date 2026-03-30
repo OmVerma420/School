@@ -1,5 +1,4 @@
-import { notifications } from "@/constants/notification";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -7,83 +6,121 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
+import { useUser } from "@/context/UserContext"; // To check role
+import { api } from "@/services/api"; // Your axios instance
 
 export default function NotificationsScreen() {
-  const [filter, setFilter] = useState<"all" | "teacher" | "school">("all");
-  const [search, setSearch] = useState("");
+  const { user } = useUser();
+  const isAdmin = user?.role === "admin";
+
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = () => {
-    setRefreshing(true);
+  // Admin Form State
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [target, setTarget] = useState<"all" | "student" | "faculty">("all");
 
-    setTimeout(() => {
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await api.get("/notifications");
+      if (response.data.success) {
+        setNotifications(response.data.notifications);
+      }
+    } catch (error) {
+      console.error("Fetch error", error);
+    } finally {
+      setLoading(false);
       setRefreshing(false);
-    }, 1000);
+    }
   };
 
-  const filteredNotifications = notifications.filter((item) => {
-    const matchFilter = filter === "all" ? true : item.type === filter;
+  const handlePostNotice = async () => {
+    if (!title || !message) return Alert.alert("Error", "Fill all fields");
 
-    const matchSearch = item.title.toLowerCase().includes(search.toLowerCase());
-
-    return matchFilter && matchSearch;
-  });
+    try {
+      const response = await api.post("/notifications", {
+        title,
+        message,
+        targetAudience: target,
+      });
+      if (response.data.success) {
+        Alert.alert("Success", "Notice Published");
+        setTitle("");
+        setMessage("");
+        setShowForm(false);
+        fetchNotifications(); // Refresh list
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to post");
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* Search */}
-      <TextInput
-        placeholder="Search Notification"
-        style={styles.search}
-        value={search}
-        onChangeText={setSearch}
-      />
+      {/* --- ADMIN ONLY SECTION --- */}
+      {isAdmin && (
+        <View style={styles.adminBox}>
+          <TouchableOpacity 
+            style={styles.postBtn} 
+            onPress={() => setShowForm(!showForm)}
+          >
+            <Text style={styles.postBtnText}>{showForm ? "Close Form" : "+ Create New Notice"}</Text>
+          </TouchableOpacity>
 
-      {/* Filters */}
-      <View style={styles.filters}>
-        <FilterButton
-          label="ALL"
-          active={filter === "all"}
-          onPress={() => setFilter("all")}
-        />
-
-        <FilterButton
-          label="By Teacher"
-          active={filter === "teacher"}
-          onPress={() => setFilter("teacher")}
-        />
-
-        <FilterButton
-          label="By School"
-          active={filter === "school"}
-          onPress={() => setFilter("school")}
-        />
-      </View>
-
-      {/* Notification List */}
-      {filteredNotifications.length === 0 ? (
-        <View style={styles.empty}>
-          <Text>No Notification Found</Text>
+          {showForm && (
+            <View style={styles.form}>
+              <TextInput 
+                placeholder="Notice Title" 
+                style={styles.input} 
+                value={title} 
+                onChangeText={setTitle} 
+              />
+              <TextInput 
+                placeholder="Details..." 
+                style={[styles.input, { height: 80 }]} 
+                multiline 
+                value={message} 
+                onChangeText={setMessage} 
+              />
+              <TouchableOpacity style={styles.submitBtn} onPress={handlePostNotice}>
+                <Text style={styles.submitText}>Publish to Everyone</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
+      )}
+
+      {/* --- NOTIFICATION LIST --- */}
+      {loading ? (
+        <ActivityIndicator size="large" color="#4F6BED" />
       ) : (
         <FlatList
-          data={filteredNotifications}
-          keyExtractor={(item) => item.id}
+          data={notifications}
+          keyExtractor={(item: any) => item._id}
           refreshing={refreshing}
-          onRefresh={onRefresh}
-          renderItem={({ item }) => (
-            <View style={[styles.card, !item.read && styles.unread]}>
+          onRefresh={() => {
+            setRefreshing(true);
+            fetchNotifications();
+          }}
+          ListEmptyComponent={<View style={styles.empty}><Text>No Notices Yet</Text></View>}
+          renderItem={({ item }: any) => (
+            <View style={styles.card}>
               <View style={styles.row}>
                 <Text style={styles.title}>{item.title}</Text>
-                <Text style={styles.time}>{item.time}</Text>
+                <Text style={styles.time}>{new Date(item.createdAt).toLocaleDateString()}</Text>
               </View>
-
-              <Text style={styles.badge}>
-                {item.type === "teacher" ? "Teacher" : "School"}
-              </Text>
-
-              <Text>{item.message}</Text>
+              <Text style={styles.badge}>{item.targetAudience.toUpperCase()}</Text>
+              <Text style={styles.msg}>{item.message}</Text>
             </View>
           )}
         />
@@ -92,92 +129,22 @@ export default function NotificationsScreen() {
   );
 }
 
-function FilterButton({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.filterBtn, active && styles.active]}
-      onPress={onPress}
-    >
-      <Text>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
+// Add these to your existing styles
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#F5F6FA",
-  },
-
-  search: {
-    backgroundColor: "#fff",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-
-  filters: {
-    flexDirection: "row",
-    marginBottom: 15,
-  },
-
-  filterBtn: {
-    padding: 10,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    marginRight: 10,
-  },
-
-  active: {
-    backgroundColor: "#D6D6FF",
-  },
-
-  card: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-
-  unread: {
-    borderLeftWidth: 4,
-    borderLeftColor: "#4F6BED",
-  },
-
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-
-  title: {
-    fontWeight: "bold",
-  },
-
-  badge: {
-    fontSize: 11,
-    color: "#4F6BED",
-    marginBottom: 4,
-    fontWeight: "600",
-  },
-
-  time: {
-    fontSize: 12,
-    color: "gray",
-  },
-
-  empty: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  // ... keep your existing styles ...
+  adminBox: { marginBottom: 20 },
+  postBtn: { backgroundColor: "#1a1a2e", padding: 15, borderRadius: 10, alignItems: "center" },
+  postBtnText: { color: "#fff", fontWeight: "bold" },
+  form: { backgroundColor: "#fff", padding: 15, borderRadius: 10, marginTop: 10, elevation: 3 },
+  input: { borderBottomWidth: 1, borderColor: "#eee", marginBottom: 10, padding: 8 },
+  submitBtn: { backgroundColor: "#2ecc71", padding: 12, borderRadius: 8, alignItems: "center" },
+  submitText: { color: "#fff", fontWeight: "bold" },
+  container: { flex: 1, padding: 20, backgroundColor: "#F5F6FA" },
+  card: { backgroundColor: "#fff", padding: 15, borderRadius: 10, marginBottom: 10 },
+  row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
+  title: { fontWeight: "bold", fontSize: 16 },
+  time: { fontSize: 12, color: "gray" },
+  badge: { fontSize: 11, color: "#4F6BED", fontWeight: "bold", marginBottom: 5 },
+  msg: { color: "#444", lineHeight: 20 },
+  empty: { alignItems: 'center', marginTop: 50 }
 });

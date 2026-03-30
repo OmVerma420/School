@@ -2,8 +2,8 @@ import express from "express";
 import { register, login, verifyOtp } from "../controllers/authController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
-
-import { createAdmission, getMyAdmissions } from "../controllers/admissionController.js";
+import { getStudentAttendanceStats, markAttendance,getStudentsByClass } from "../controllers/attendanceController.js";
+import { createAdmission, getAllAdmissions, getMyAdmissions, updateAdmissionStatus } from "../controllers/admissionController.js";
 import { createAssignment, getAssignments } from "../controllers/assignmentController.js";
 import { createClcRequest, getMyClcRequests } from "../controllers/clcController.js";
 import { createNotification, getNotifications } from "../controllers/notificationController.js";
@@ -23,6 +23,8 @@ router.put('/auth/complete-profile', authMiddleware, completeProfile);
 /* ================= ADMISSIONS ================= */
 router.post("/admissions", authMiddleware, createAdmission);
 router.get("/admissions/my", authMiddleware, getMyAdmissions);
+router.get("/admissions/all", authMiddleware, roleMiddleware("admin"), getAllAdmissions);
+router.put("/admissions/:id/status", authMiddleware, roleMiddleware("admin"), updateAdmissionStatus);
 
 /* ================= ASSIGNMENTS ================= */
 router.get("/assignments", authMiddleware, getAssignments);
@@ -58,6 +60,33 @@ router.post(
   upload.single("file"),
   uploadMaterial
 );
+
+// Get all users (Admin only)
+router.get("/admin/users", authMiddleware, roleMiddleware("admin"), async (req, res) => {
+  try {
+    const users = await User.find().select("-password").sort({ createdAt: -1 });
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
+// Update user role or status (Admin only)
+router.put("/admin/users/:id", authMiddleware, roleMiddleware("admin"), async (req, res) => {
+  try {
+    const { role, isProfileComplete } = req.body;
+    const user = await User.findByIdAndUpdate(req.params.id, { role, isProfileComplete }, { new: true });
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update user" });
+  }
+});
+
+
+
+router.get("/attendance/my-stats", authMiddleware, getStudentAttendanceStats);
+router.post("/attendance/mark", authMiddleware, roleMiddleware("faculty", "admin"), markAttendance);
+router.get("/attendance/students/:className", authMiddleware, roleMiddleware("faculty", "admin"), getStudentsByClass);
 
 
 
